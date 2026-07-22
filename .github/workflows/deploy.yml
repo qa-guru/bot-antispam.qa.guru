@@ -52,7 +52,7 @@ jobs:
             set -euo pipefail
             STAGING="$HOME/.bot-antispam-deploy"
             REPO="qa-guru/bot-antispam.qa.guru"
-            REF="${{ steps.meta.outputs.ref }}"
+            REF="${{ github.sha }}"
             mkdir -p "$STAGING"
             curl -fsSL "https://raw.githubusercontent.com/${REPO}/${REF}/deploy/deploy.sh" -o "$STAGING/deploy.sh"
             curl -fsSL "https://raw.githubusercontent.com/${REPO}/${REF}/deploy/docker-compose.yml" -o "$STAGING/docker-compose.yml"
