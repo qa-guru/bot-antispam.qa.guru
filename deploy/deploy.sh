@@ -20,7 +20,16 @@ mkdir -p "${CONFIG_DIR}/log/qa-guru" "${CONFIG_DIR}/log/automation" \
 install -m 644 "${SCRIPT_DIR}/docker-compose.yml" "${CONFIG_DIR}/docker-compose.yml"
 
 echo "=== pull ${IMAGE} ==="
-docker pull "${IMAGE}"
+if ! docker pull "${IMAGE}" 2>/dev/null; then
+  echo "Pull failed (GHCR may be private) — building from qa-guru/tg-spam source"
+  BUILD_DIR="${HOME}/tg-spam-build"
+  if [[ ! -d "${BUILD_DIR}/.git" ]]; then
+    git clone --depth 1 https://github.com/qa-guru/tg-spam.git "${BUILD_DIR}"
+  else
+    git -C "${BUILD_DIR}" fetch origin master && git -C "${BUILD_DIR}" reset --hard origin/master
+  fi
+  docker build -t "${IMAGE}" "${BUILD_DIR}"
+fi
 
 echo "=== up (preserve var/ and log/) ==="
 cd "${CONFIG_DIR}"
