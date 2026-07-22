@@ -19,8 +19,12 @@ mkdir -p "${CONFIG_DIR}/log/qa-guru" "${CONFIG_DIR}/log/automation" \
 
 install -m 644 "${SCRIPT_DIR}/docker-compose.yml" "${CONFIG_DIR}/docker-compose.yml"
 
-echo "=== pull ${IMAGE} ==="
-if ! docker pull "${IMAGE}" 2>/dev/null; then
+echo "=== ensure image ${IMAGE} ==="
+if docker image inspect "${IMAGE}" >/dev/null 2>&1; then
+  echo "Image already present locally"
+elif docker pull "${IMAGE}"; then
+  echo "Pulled from registry"
+else
   echo "Pull failed (GHCR may be private) — building from qa-guru/tg-spam source"
   BUILD_DIR="${HOME}/tg-spam-build"
   if [[ ! -d "${BUILD_DIR}/.git" ]]; then
