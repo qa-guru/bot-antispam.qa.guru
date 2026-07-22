@@ -1,0 +1,44 @@
+services:
+  tg-spam-qa-guru:
+    image: ${TGSPAM_IMAGE:-ghcr.io/qa-guru/tg-spam:latest}
+    container_name: bot_antispam-tg-spam-qa-guru-1
+    hostname: tg-spam-qa-guru
+    restart: always
+    user: "1000:1000"
+    env_file: .env
+    environment:
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN_QA_GURU}
+      - TELEGRAM_GROUP=qa_guru_chat
+      - ADMIN_GROUP=${ADMIN_GROUP}
+      - LOGGER_FILE=/srv/log/tg-spam.log
+    volumes:
+      - ./log/qa-guru:/srv/log
+      - ./var/qa-guru:/srv/var
+    command: ["--super=${SUPER_USER:-iTerkin}"]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  tg-spam-automation:
+    image: ${TGSPAM_IMAGE:-ghcr.io/qa-guru/tg-spam:latest}
+    container_name: bot_antispam-tg-spam-automation-1
+    hostname: tg-spam-automation
+    restart: always
+    user: "1000:1000"
+    env_file: .env
+    environment:
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN_AUTOMATION}
+      - TELEGRAM_GROUP=qa_automation
+      - ADMIN_GROUP=${ADMIN_GROUP}
+      - LOGGER_FILE=/srv/log/tg-spam.log
+    volumes:
+      - ./log/automation:/srv/log
+      - ./var/automation:/srv/var
+    command: ["--super=${SUPER_USER:-iTerkin}"]
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"

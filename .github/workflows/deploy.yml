@@ -1,0 +1,66 @@
+name: deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref with deploy scripts (branch or tag)'
+        required: false
+        default: main
+      image:
+        description: 'Override TGSPAM_IMAGE (empty = ghcr.io/qa-guru/tg-spam:latest)'
+        required: false
+        default: ''
+  repository_dispatch:
+    types: [deploy-bot-antispam]
+
+concurrency:
+  group: bot-antispam-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: bot-antispam-production
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || github.event.client_payload.ref || github.ref }}
+
+      - name: Resolve ref and image
+        id: meta
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "ref=${{ inputs.ref }}" >> "$GITHUB_OUTPUT"
+            echo "image=${{ inputs.image }}" >> "$GITHUB_OUTPUT"
+          elif [[ -n "${{ github.event.client_payload.ref }}" ]]; then
+            echo "ref=${{ github.event.client_payload.ref }}" >> "$GITHUB_OUTPUT"
+            echo "image=${{ github.event.client_payload.image || '' }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=main" >> "$GITHUB_OUTPUT"
+            echo "image=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.5
+        with:
+          host: ${{ secrets.BOT_ANTISPAM_DEPLOY_HOST }}
+          username: ${{ secrets.BOT_ANTISPAM_DEPLOY_USER }}
+          key: ${{ secrets.BOT_ANTISPAM_DEPLOY_KEY }}
+          command_timeout: 15m
+          script: |
+            set -euo pipefail
+            STAGING="$HOME/.bot-antispam-deploy"
+            REPO="qa-guru/bot-antispam.qa.guru"
+            REF="${{ steps.meta.outputs.ref }}"
+            mkdir -p "$STAGING"
+            curl -fsSL "https://raw.githubusercontent.com/${REPO}/${REF}/deploy/deploy.sh" -o "$STAGING/deploy.sh"
+            curl -fsSL "https://raw.githubusercontent.com/${REPO}/${REF}/deploy/docker-compose.yml" -o "$STAGING/docker-compose.yml"
+            curl -fsSL "https://raw.githubusercontent.com/${REPO}/${REF}/deploy/smoke-remote.sh" -o "$STAGING/smoke-remote.sh"
+            chmod +x "$STAGING/deploy.sh" "$STAGING/smoke-remote.sh"
+            IMAGE="${{ steps.meta.outputs.image }}"
+            if [[ -n "$IMAGE" ]]; then
+              export TGSPAM_IMAGE="$IMAGE"
+            fi
+            bash "$STAGING/deploy.sh"
+            bash "$STAGING/smoke-remote.sh"
